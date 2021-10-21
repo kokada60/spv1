@@ -29,6 +29,8 @@ schools <- schools %>% mutate(schoolSplit=strsplit(EducationOrganizationName, ' 
 modSchools <- orig1 %>% mutate(schoolSplit= strsplit(ModSchool, ' ', fixed=TRUE) ) 
 jsonedit(schools)
 
+
+
 library(purrr)
 # combined <- cross2(schools %>% transmute(SDMSchoolSplit=schoolSplit), 
 #               modSchools %>% transmute(ModSchoolSplit=schoolSplit))
