@@ -2,6 +2,7 @@
 library(DBI) 
 library(dplyr)
 library(writexl)
+library(tidyr) 
 
 con <- DBI::dbConnect(odbc::odbc(), Driver = "SQL Server", Server="ORIONTEST.CIS.CCSD.NET", Database="ACCOUNTABILITY", Trusted_Connection="TRUE", Authentication = "ActiveDirectoryInteractive")
 orig1 <- DBI::dbGetQuery (con, "
@@ -89,6 +90,8 @@ matchedSplits <- map(mods,
 toc()
 
 tic("parallel")
+# Parallelized cross matching of modSchoolNames and SDM schoolNames... 
+# Discards Non-Matches, and superficial matches that scores less than two matches paired with a group. 
 matchedSplits_Parallel <- future_map(mods, function(ms) { 
     future_map(sdms, function(s) { 
       scr <- intersect(ms, s)
@@ -98,6 +101,8 @@ matchedSplits_Parallel <- future_map(mods, function(ms) {
   }) %>% future_map( ~ discard(., ~ is.null(.))) 
 toc()
 
+# Scoring each matches by number of segment matches in a pair, and mean length of all matched segments.
+# The notion is the longer the matched segment, it is a match of more significance. ( "Abston' is more significant than 'ES' matching )
 scored_Matches <- map(matchedSplits_Parallel, function(m) {
   map(m, ~ ( list(
                     matchedSegments=., 
@@ -105,21 +110,125 @@ scored_Matches <- map(matchedSplits_Parallel, function(m) {
                     MeanMatchedSegsScore=mean(stringr::str_length(.))
                   )))
 }) 
+# Calculating Total Score. 
 scored_Matches <- map(scored_Matches, function(n) { 
-    map(n, function(p) { 
-        list(
-          matchedSegments=p$matchedSegments, 
-          SegmentMatchScore=p$SegmentMatchScore, 
-          MeanMatchedSegsScore=p$MeanMatchedSegsScore, 
-          TotalScore=p$SegmentMatchScore + p$MeanMatchedSegsScore
-        )}) 
+  map(n, ~ (
+    list(
+      matchedSegments=.$matchedSegments, 
+      SegmentMatchScore=.$SegmentMatchScore, 
+      MeanMatchedSegsScore=.$MeanMatchedSegsScore, 
+      TotalScore=.$SegmentMatchScore + .$MeanMatchedSegsScore
+    ))) 
 })
 
-jsonedit(scored_Matches)
-map(scored_Matches, function(m) { map(m, function(n) {n$TotalScore}) }) 
+
+# Now reduce the list of matches for each segment groups to the one with the maximum score... 
+# Selected list is dissolved to a single level list. ie. The selected group is "unlisted" by 
+# one level. 
+topMatch <- scored_Matches %>% map( function(i) {
+  groupScores <- map(i, "TotalScore") %>% unlist()
+  if (!is_empty(groupScores)) {
+    b<-i[which(groupScores == max(groupScores))] %>% unlist(recursive=FALSE, use.names=TRUE)
+    a<-list( 
+      matchedSegments = b$matchedSegments, 
+      SegmentMatchScore = b$SegmentMatchScore, 
+      MeanMatchedSegsScore = b$MeanMatchedSegsScore,
+      TotalScore = b$TotalScore
+    )
+  }
+  else {
+    a<-list(
+      matchedSegments=c(), 
+      SegmentMatchScore = 0, 
+      MeanMatchedSegsScore = 0, 
+      TotalScore = 0
+    )
+  }
+  a
+  #is_empty(groupScores)
+}) # -> c
+
+head(topMatch, 1) %>% str()
+
+# Testing for empty element... 
+map(topMatch, is_empty) %>% unlist() -> aa33
+aa33
+which(aa33 == TRUE)
+which(aa22==TRUE)
+topMatch[[29]]
+jsonedit(topMatch)
+
+
+schools
+# In tidy way, converting the nested list into a tibble, which could be unnested with individual 
+# elements of topMatch "widened" to a column of its own...
+dfMatch <- tibble(modSchools = modSchools$ModSchool, tm=topMatch)
+dfMatch
+dfMatch_Wider <- dfMatch %>% unnest_wider(tm) 
+
+dfMatch %>% hoist(topMatch, "modID", segments="matchedSegments")
+
+modSchools
+
+# cc[[29]]
+# cc[[101]]
+# scored_Matches[which(cc==FALSE)]
+# scored_Matches[which(cc==TRUE)]
+
+jsonedit(topMatch)
+
+
+# Possible to convert each named item in the group to a list of its own, 
+# later to be column binded into a data.frame? 
+
+map(topMatch, function(i) { map(i, "matchedSegments")}) -> a1
+map(topMatch, function(i) { map(i, "matchedSegments")} %>% unlist())-> a2 
+
+library(tidyr)
+1:length(topMatch)
+
+df <- tibble(modID = 1:length(topMatch), 
+             topMatch) 
+df%>% unnest_wider(topMatch)
+
+
+metadata = list(
+  list(
+    species = "dragon",
+    color = "black",
+    films = c(
+      "How to Train Your Dragon",
+      "How to Train Your Dragon 2",
+      "How to Train Your Dragon: The Hidden World"
+    )
+  ),
+  list(
+    species = "blue tang",
+    color = "blue",
+    films = c("Finding Nemo", "Finding Dory")
+  ),
+  list(
+    species = "PhantomDragon",
+    color = "clear",
+    films = c()
+  )
+)
+df <- tibble(
+  character = c("Toothless", "Dory", "Phantom"),
+  met=metadata
+)
+df
+df %>% unnest_wider(met) -> df_wider
+df_wider
+df_match %>% unnest_wider(topMatch)
+
+map(topMatch, function(i) { 
+  list(matchedSegments = i$matchedSegments)
+})
 
 
 
+jsonedit(topMatch)
 
 
 
