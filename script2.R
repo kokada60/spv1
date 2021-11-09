@@ -1,6 +1,7 @@
-
+install.packages("sqldf")
 library(listviewer)
 library(DBI) 
+library(sqldf)
 library(dplyr)
 library(writexl)
 library(tidyr) 
@@ -50,6 +51,7 @@ matchedSplits <- map(mods, function(ms) {
   })
 }) %>% transpose()  
 
+modSchools
 
 matchList <- tibble(SDMID=schools$EducationOrganizationID, SDMName=schools$EducationOrganizationName,  matchedSplits=matchedSplits)
 matchListExpanded <- matchList %>% unnest_longer(matchedSplits)
@@ -86,6 +88,7 @@ View(matchGrouped %>% select(modSchool, SDMName, TotalScore, everything()))
 View(matchGroupedFiltered %>% select(modSchool, SDMName, TotalScore, everything()))
 
 con <- DBI::dbConnect(odbc::odbc(), Driver = "SQL Server", Server="ORIONTEST.CIS.CCSD.NET", Database="ACCOUNTABILITY", Trusted_Connection="TRUE", Authentication = "ActiveDirectoryInteractive")
-DBI::dbWriteTable(con, name="tmpMatchedSchools", value=matchGroupedFiltered)
+dbWriteTable(con, name="tmpMatchedSchools", value=matchGroupedFiltered)
 
+dbDisconnect(con)
 

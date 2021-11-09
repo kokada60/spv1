@@ -92,21 +92,62 @@ toc()
 tic("parallel")
 # Parallelized cross matching of modSchoolNames and SDM schoolNames... 
 # Discards Non-Matches, and superficial matches that scores less than two matches paired with a group. 
-matchedSplits_Parallel <- future_map(mods, function(ms) { 
-    future_map(sdms, function(s) { 
-      scr <- intersect(ms, s)
-      if( length(scr) >= 2 )
-        scr
-    })
-  }) %>% future_map( ~ discard(., ~ is.null(.))) 
-toc()
+# matchedSplits_Parallel <- future_map(mods, function(ms) { 
+#     future_map(sdms, function(s) { 
+#       scr <- intersect(ms, s)
+#       if( length(scr) >= 2 )
+#         scr
+#     })
+#   }) %>% future_map( ~ discard(., ~ is.null(.))) 
+# toc()
+
+
+matchedSplits <- map(mods, function(ms) { 
+  map(sdms, function(s) { 
+    scr <- intersect(ms, s)
+    if( length(scr) >= 2 )
+      scr
+  })
+}) %>% map( ~ discard(., ~ is.null(.))) 
+
+matchedSplits1 <- map(mods, function(ms) { 
+  map(sdms, function(s) { 
+    scr <- intersect(ms, s)
+    if( length(scr) >= 2 ) {
+      list(matches = scr, SDMsegs = s)
+    }
+    else {
+      list(matches = list(), SDMsegs = s)
+    }
+  })
+}) %>% map( ~ discard(., ~ is.null(.$matches))) 
+jsonedit(matchedSplits1) 
+
+matchedSplits1 %>% head(2) -> m2
+
+map(m2, function(i) { length(i) })
+map(m2, function(i) { map(i, function(j) { j$matches })}) 
+map(m2, function(i) { map(i, function(j) { j$matches %>% length() }) })
+map(m2, function(i) { map(i, function(j) { i$j })
+
+discard(i, ~ is.null(i$matches22) ) ) })
+
+
+
+
+
+
+
+
+
 
 # Scoring each matches by number of segment matches in a pair, and mean length of all matched segments.
 # The notion is the longer the matched segment, it is a match of more significance. ( "Abston' is more significant than 'ES' matching )
-scored_Matches <- map(matchedSplits_Parallel, function(m) {
+scored_Matches <- map(matchedSplits, function(m) {
   map(m, ~ ( list(
                     matchedSegments=., 
                     SegmentMatchScore=length(.), 
+                    SumOfLengths=mean(stringr::str_length(.)),
                     MeanMatchedSegsScore=mean(stringr::str_length(.))
                   )))
 }) 
@@ -116,6 +157,7 @@ scored_Matches <- map(scored_Matches, function(n) {
     list(
       matchedSegments=.$matchedSegments, 
       SegmentMatchScore=.$SegmentMatchScore, 
+      SumOfLengths=.$SumOfLengths,
       MeanMatchedSegsScore=.$MeanMatchedSegsScore, 
       TotalScore=.$SegmentMatchScore + .$MeanMatchedSegsScore
     ))) 
@@ -125,12 +167,15 @@ scored_Matches <- map(scored_Matches, function(n) {
 # Now reduce the list of matches for each segment groups to the one with the maximum score... 
 # Selected list is dissolved to a single level list. ie. The selected group is "unlisted" by 
 # one level. 
+# Be sure to account for element that is empty, and that non-empty elements and empty elements 
+# share identical field names... If mismatched, the resulting tibble will have expanded fields list. 
 topMatch <- scored_Matches %>% map( function(i) {
-  groupScores <- map(i, "TotalScore") %>% unlist()
+  groupScores <- map(i, "SumOfLengths") %>% unlist()
   if (!is_empty(groupScores)) {
     b<-i[which(groupScores == max(groupScores))] %>% unlist(recursive=FALSE, use.names=TRUE)
     a<-list( 
-      matchedSegments = b$matchedSegments, 
+      matchedSegments = b$matchedSegments %>% unlist(), 
+      SumofLengths = b$SumofLengths,
       SegmentMatchScore = b$SegmentMatchScore, 
       MeanMatchedSegsScore = b$MeanMatchedSegsScore,
       TotalScore = b$TotalScore
@@ -139,6 +184,7 @@ topMatch <- scored_Matches %>% map( function(i) {
   else {
     a<-list(
       matchedSegments=c(), 
+      SumofLengths = 0,
       SegmentMatchScore = 0, 
       MeanMatchedSegsScore = 0, 
       TotalScore = 0
@@ -159,16 +205,32 @@ topMatch[[29]]
 jsonedit(topMatch)
 
 
-schools
 # In tidy way, converting the nested list into a tibble, which could be unnested with individual 
 # elements of topMatch "widened" to a column of its own...
-dfMatch <- tibble(modSchools = modSchools$ModSchool, tm=topMatch)
-dfMatch
-dfMatch_Wider <- dfMatch %>% unnest_wider(tm) 
+dfMatch_Wider <- tibble(modSchools = modSchools$ModSchool, tm=topMatch) %>% unnest_wider(tm) 
 
-dfMatch %>% hoist(topMatch, "modID", segments="matchedSegments")
+# Now find if any SDM segments sets has been matched to more than one school... 
+rps <- dfMatch_Wider %>% 
+group_by(matchedSegments) %>% mutate(msCounts = n()) %>% rowwise() %>%
+  filter(msCounts > 1 & !is.null(matchedSegments) )
+rps %>% select(modSchools, matchedSegments) %>% rowwise() %>% mutate(mc=unlist(matchedSegments) %>% paste(collapse=" "))
 
-modSchools
+sdms %>% map( function(i) { 'Thurman' %in% i})
+
+schools %>% View()
+
+schools %>% filter(EducationOrganizationName = )                   
+
+
+
+
+
+
+keep(sdms, function(i) { "West" %in% i & "^Prep" %in% i })
+
+
+
+
 
 # cc[[29]]
 # cc[[101]]
