@@ -96,15 +96,22 @@ dat_p %>% unnest(stark_or_lanister) # revealing the filtered allegiance list. Po
 dat_p %>% mutate(Cnt_Of_houses_Allged_to = map_int(stark_or_lanister, ~ length(.))) %>% 
   filter(Cnt_Of_houses_Allged_to > 0)
 
-dat_p %>% mutate(ssa = map(allegiances, paste, collapse="#")  %>% unlist())
+dat_p %>% mutate(ssa = map(allegiances, paste, collapse="#")  %>% unlist()) %>% View()
+
+whom_can_you_trust <- function(name, allegiances, stark_or_lanister, ...) {
+  y <- ifelse(length(stark_or_lanister) > 0, 
+              glue::glue("{name} has an allegiance to the {stark_or_lanister} family"),
+              glue::glue("{name} has no allegiance to the starks or lannisters, "))
+    ifelse(length(allegiances) > 1, 
+           glue::glue("{y} but also has {length(allegiances)-1} other allegiance(s)."), 
+           glue::glue("{y} and no other allegiances."))
+}
+dat_p %>% mutate(countAllegiance = pmap_chr(., whom_can_you_trust))
+dat_p %>% pmap_chr(whom_can_you_trust)
+dat_p %>% View()
 
 
 
-
-
-
-
-dat_p$stark_or_lanister[[2]] %>% length()
 
 
 
