@@ -110,18 +110,46 @@ dat_p %>% mutate(countAllegiance = pmap_chr(., whom_can_you_trust))
 dat_p %>% pmap_chr(whom_can_you_trust)
 dat_p %>% View()
 
+imap_chr(sample_n(dat_m, 10)$name, ~ paste0(.y, ":", .x))
+sample_n(dat_m, 10) %>% as_tibble()
+
+ppt <- function(first, second, ...) {
+  paste(first, second) 
+}
+
+
+sample_n(dat_p, 10) %>% as_tibble() %>% pmap_chr(~ ppt(..1, ..2))
+
+
+
+sample_n(dat_m, 10) %>% select(name, gender)-> agggg
+agggg$gender
+
+
+pt <- function(name, gender) {
+  paste(name, gender) 
+}
+
+pmap(dat_p, ~names(list(...)))
+pmap(dat_p, ~ with(list(...), paste(name, gender)))
+pmap_chr(dat_p, ~ with(list(...), paste(.x, ":##", ..2,  ..3)))
+
+pmap(list(1, 2, 4, 5), ~ replicate(n = ..1, expr = ..2))
+pmap(list(3, 2, 4, 4, 6), ~ with(list(...), replicate(n = ..1, expr = .3)))
+
+pmap(dat_p, ~with(list(...), paste))
+
+
+replicate()
+
+
+
+pmap_dbl(iris, ~ ..1 + ..2 + ..3 + ..4)
+pmap_dbl(iris, as_mapper(~ Sepal.Length + Sepal.Width))
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
+paste
