@@ -44,7 +44,7 @@ library(data.table)
 # A test-run for one split... 
 example <-   holdout_results(rs_obj$splits[[1]], mod_form)
 class(example)
-names(example) 
+names(example)
 example[, setdiff(colnames(example), colnames(attrition))]
 example[1:10, setdiff(names(example), names(attrition))]
 example %>% data.table() %>% .[, mean(correct)] 
@@ -57,6 +57,10 @@ rs_obj <- rs_obj %>% mutate(results = map(rs_obj$splits, holdout_results, mod_fo
 # Statistics of each split could be aggregated to generate a single measure...
 rs_obj$accuracy <- map_dbl(rs_obj$results, ~ mean(.$correct))
 rs_obj$accuracy %>% summary() 
+
+
+
+
 
 
 

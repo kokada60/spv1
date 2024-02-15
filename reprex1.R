@@ -1,0 +1,62 @@
+library(tidyverse)
+
+df1 <- structure(list(ID = c("303667", "527334", "546623", "10106063", 
+                      "10087570", "547163", "320356", "10106046", "10040214", "10033447"
+), `Job Title` = c("COMPUTER LIT", "COMPUTER LIT", "COMPUTER LIT", 
+                   "COMPUTER LIT", "COMPUTER LIT", "COMPUTER LIT", "COMPUTER LIT", 
+                   "COMPUTER PGM/SCI", "COMPUTER PGM/SCI", "COMPUTER PGM/SCI"), 
+Endorsements_splits = list(list("7-12 Biological Science", 
+                                "7-12 General Science", "7-12 Physical Science", "7-12 Mathematics", 
+                                "K-12 Computer Programming", "K-12 School Administrator"), 
+                           list("7-12 Business Major", "7-12 Computer-Based Applications"), 
+                           list("7-12 Business Major", "7-12 TESL", "7-A Alternative Education", 
+                                "K-12 School Administrator"), list("7-12 CTE Business Management", 
+                                                                   "7-12 Computer Science"), list("7-12 Social Studies", 
+                                                                                                  "7-12 Computer Applications"), list("7-A B&I Bus Admin & Mgr Services"), 
+                           list("K-8 Elementary", "7-12 Business", "7-12 OCC Home Economics", 
+                                "K-12 Computer Application", "K-12 Computer Literacy"), 
+                           list("7-12 ARL Physical Science"), list("7-12 Biological Science", 
+                                                                   "7-12 Chemistry", "7-12 General Science", "7-12 Physical Science", 
+                                                                   "7-12 History of the US & World", "7-12 Social Studies", 
+                                                                   "7-12 Computer Science"), list("7-12 Business Education", 
+                                                                                                  "7-12 English Major"))), row.names = c(NA, -10L), class = c("tbl_df", 
+                                                                                                                                                              "tbl", "data.frame"))
+
+
+Math_TestExp <- regex("(\\b(Math|Mathematics).*\\b(\\w)?)", comments=TRUE, ignore_case=TRUE)
+Science_TestExp <- regex("(^((?!.*computer)(?!.*Political)(?!.*health)(?!.*Library)(?!.*forensic).*science)\\b(\\w)?)|(^[\\*]?\\b(Biology|Chemistry|Botany|Geology|Physics|Physiology|zoology)\\b(\\w)?)", comments=TRUE, ignore_case=TRUE)
+ComputerScience_TestExp <- regex("(\\w)?(\\b)(computer|Digital\\sGame\\sDevelopment|Information\\sTechnology)", comments=TRUE, ignore_case=TRUE)
+
+
+
+## THis works great... 
+FirstTry_dfCertifiedTeachers <- 
+  df1 %>% 
+  mutate(Math_Endorsed = map_int(Endorsements_splits, ~ { str_detect(unlist(.), Math_TestExp) %>% any() %>% ifelse(., 1, 0) %>% as.integer()})) %>% 
+  mutate(Science_Endorsed = map_int(Endorsements_splits, ~ { str_detect(unlist(.), Science_TestExp) %>% any() %>% ifelse(., 1, 0) %>% as.integer()})) %>% 
+  mutate(CompSci_Endorsed = map_int(Endorsements_splits, ~ { str_detect(unlist(.), ComputerScience_TestExp) %>% any() %>% ifelse(., 1, 0) %>% as.integer()}))
+
+
+## But I would like to try this construct... 
+Endorsements_CategoryName <- c(
+  "Math_Endorsed_test", 
+  "Science_Endorsed_test", 
+  "CompSci_Endorsed_test"
+)
+EndorsementsCertification_Tests <- list(
+  Math_TestExp, 
+  Science_TestExp, 
+  ComputerScience_TestExp
+)
+EndoCerts_Categorize_Helper <- EndorsementsCertification_Tests %>% map(~ expr( str_detect(Endorsements_splits, !!.x))) %>% 
+  set_names(Endorsements_CategoryName)
+
+
+SecondTry_dfCertifiedTeachers <- 
+  df1 %>% mutate(!!!EndoCerts_Categorize_Helper) 
+
+SecondTry_dfCertifiedTeachers %>% View()
+
+
+
+

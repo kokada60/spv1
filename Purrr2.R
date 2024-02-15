@@ -123,7 +123,6 @@ sample_n(dat_p, 10) %>% as_tibble() %>% pmap_chr(~ ppt(..1, ..2))
 
 
 sample_n(dat_m, 10) %>% select(name, gender)-> agggg
-agggg$gender
 
 
 pt <- function(name, gender) {
@@ -132,24 +131,43 @@ pt <- function(name, gender) {
 
 pmap(dat_p, ~names(list(...)))
 pmap(dat_p, ~ with(list(...), paste(name, gender)))
-pmap_chr(dat_p, ~ with(list(...), paste(.x, ":##", ..2,  ..3)))
+pmap_chr(dat_p %>% select(name, gender, culture), ~ with(list(...), paste(..1, ":##", ..3)))
 
-pmap(list(1, 2, 4, 5), ~ replicate(n = ..1, expr = ..2))
-pmap(list(3, 2, 4, 4, 6), ~ with(list(...), replicate(n = ..1, expr = .3)))
+pmap(list(3, 2 ), ~ replicate(n = ..1, expr = .y))
 
-pmap(dat_p, ~with(list(...), paste))
-
-
-replicate()
+dat_p %>% as_tibble() %>% pmap(~ with(list(...), replicate(n = length(..4), expr = ..3)))
 
 
 
-pmap_dbl(iris, ~ ..1 + ..2 + ..3 + ..4)
-pmap_dbl(iris, as_mapper(~ Sepal.Length + Sepal.Width))
+tib <- tibble(A1 = 0:9, A2 = 10:19, A3 = 20:29, 
+              B1 = 30:39, B2 = 40:49, B3 = 50:59,
+              C1 = 60:69, C2 = 70:79, C3 = 80:89)
+
+params <- list(col1=c("A1", "B1", "C1"),
+               col2=c("A2", "B2", "C2"),
+               col3=c("A3", "B3", "C3"))
+
+
+select_three2 <- function(data, col1, col2, col3) {
+  result = data %>% select(.data[[col1]], col2, col3)
+  result
+}
+
+select_three <- function(data, first, second, third) {
+  result = data %>% select(.data[[first]], .data[[second]], .data[[third]])
+  result
+}
+tib
+
+tib
+pmap(params %>% as_tibble() %>% rowwise(), ~select_three2(tib, ..1, ..2, ..3))
+
+
+pmap(params, ~select_three(tib, ..1, ..2, ..3))
 
 
 
 
 
 
-paste
+
